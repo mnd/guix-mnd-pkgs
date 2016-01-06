@@ -23,6 +23,7 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages gawk)
   #:use-module (gnu packages xml)
+  #:use-module (gnu packages databases)
   #:use-module (gnu packages web))
 
 (define-public php
@@ -34,17 +35,37 @@
               (uri (string-append "http://www.php.net/distributions/php-" version
                                   ".tar.xz"))
               (sha256
-	        (base32
+                (base32
                   "1afcxfrka54iij6b1j8xlji1y6akcb04pyk3jqk9f2g647kf4lng"))
-	      (patches (list (search-patch "php5-httpd2-support.patch")))))
+              #;(patches (list (search-patch "php5-httpd2-support.patch")))))
     (build-system gnu-build-system)
-    (arguments `(#:test-target "test"
-		 #:configure-flags (list (string-append "--with-libxml-dir=" (assoc-ref %build-inputs "libxml2")) 
-	                                 (string-append "--with-apxs2=" (assoc-ref %build-inputs "httpd") "/bin/apxs")
-	                                 "--with-mysql")))
+;; REPORT_EXIT_STATUS=1 will fail if tests failed. For now 30/9000 tests fails
+    (arguments `(#:make-flags (list "NO_INTERACTION=1" #;"REPORT_EXIT_STATUS=1")
+                 #:test-target "test"
+                 #:configure-flags (list (string-append "--with-libxml-dir="
+                                           (assoc-ref %build-inputs "libxml2"))
+;; WARNING: Probably correct will be "--with-pdo-pgsql=shared,"
+                                         (string-append "--with-pdo-pgsql="
+                                           (assoc-ref %build-inputs "postgresql"))
+                                         "--enable-fpm")
+                 #:phases (alist-cons-after 'unpack 'fix-hardcoded-paths
+                           (lambda _
+                             (substitute* '("run-tests.php" "ext/standard/proc_open.c")
+                               (("/bin/sh") (which "sh"))))
+                           (alist-cons-after 'install 'install-configs
+                            (lambda* (#:key outputs #:allow-other-keys)
+;; Make step 4 from https://secure.php.net/manual/en/install.unix.nginx.php
+                              (let ((out (assoc-ref outputs "out")))
+                                (copy-file
+                                  "php.ini-development"
+                                  (string-append out "/php/php.ini"))
+                                (rename-file
+                                  (string-append out "/etc/php-fpm.conf.default")
+                                  (string-append out "/etc/php-fpm.conf"))))
+                            %standard-phases))))
     (inputs `(("gawk" ,gawk)
-	      ("libxml2" ,libxml2)))
-    (propagated-inputs `(("httpd" ,httpd)))
+              ("libxml2" ,libxml2)
+              ("postgresql" ,postgresql)))
     (synopsis "PHP programming language")
     (description "PHP programming language")
     (home-page "http://www.php.net/")
