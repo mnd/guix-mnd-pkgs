@@ -37,7 +37,7 @@
                                 ".tar.xz"))
             (sha256
              (base32
-              "1afcxfrka54iij6b1j8xlji1y6akcb04pyk3jqk9f2g647kf4lng"))
+              "0b7vn2kv0lg56kyfl42h9c9cpmxcvrk68q9iw5qp2z0c714mg7ga"))
             (patches (list (search-patch "php5-httpd2-support.patch")
                            (search-patch "php5-deterministic-build.patch")))))
    (build-system gnu-build-system)
