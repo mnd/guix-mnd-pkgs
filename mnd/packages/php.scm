@@ -17,6 +17,7 @@
 
 (define-module (mnd packages php)
   #:use-module (guix packages)
+  #:use-module (guix utils)
   #:use-module (guix download)
   #:use-module (guix build-system gnu)
   #:use-module (guix licenses)
@@ -28,45 +29,57 @@
 
 (define-public php
   (package
-    (name "php")
-    (version "5.6.15")
-    (source (origin
-              (method url-fetch)
-              (uri (string-append "http://www.php.net/distributions/php-" version
-                                  ".tar.xz"))
-              (sha256
-                (base32
-                  "1afcxfrka54iij6b1j8xlji1y6akcb04pyk3jqk9f2g647kf4lng"))
-              #;(patches (list (search-patch "php5-httpd2-support.patch")))))
-    (build-system gnu-build-system)
-;; REPORT_EXIT_STATUS=1 will fail if tests failed. For now 30/9000 tests fails
-    (arguments `(#:make-flags (list "NO_INTERACTION=1" #;"REPORT_EXIT_STATUS=1")
-                 #:test-target "test"
-                 #:configure-flags (list (string-append "--with-libxml-dir="
-                                           (assoc-ref %build-inputs "libxml2"))
-;; WARNING: Probably correct will be "--with-pdo-pgsql=shared,"
-                                         (string-append "--with-pdo-pgsql="
-                                           (assoc-ref %build-inputs "postgresql"))
-                                         "--enable-fpm")
-                 #:phases (alist-cons-after 'unpack 'fix-hardcoded-paths
-                           (lambda _
-                             (substitute* '("run-tests.php" "ext/standard/proc_open.c")
-                               (("/bin/sh") (which "sh"))))
-                           (alist-cons-after 'install 'install-configs
-                            (lambda* (#:key outputs #:allow-other-keys)
-;; Make step 4 from https://secure.php.net/manual/en/install.unix.nginx.php
-                              (let ((out (assoc-ref outputs "out")))
-                                (copy-file
-                                  "php.ini-development"
-                                  (string-append out "/php/php.ini"))
-                                (rename-file
-                                  (string-append out "/etc/php-fpm.conf.default")
-                                  (string-append out "/etc/php-fpm.conf"))))
-                            %standard-phases))))
-    (inputs `(("gawk" ,gawk)
-              ("libxml2" ,libxml2)
-              ("postgresql" ,postgresql)))
-    (synopsis "PHP programming language")
-    (description "PHP programming language")
-    (home-page "http://www.php.net/")
-    (license bsd-3)))
+   (name "php")
+   (version "5.6.17")
+   (source (origin
+            (method url-fetch)
+            (uri (string-append "http://www.php.net/distributions/php-" version
+                                ".tar.xz"))
+            (sha256
+             (base32
+              "1afcxfrka54iij6b1j8xlji1y6akcb04pyk3jqk9f2g647kf4lng"))
+            (patches (list (search-patch "php5-httpd2-support.patch")
+                           (search-patch "php5-deterministic-build.patch")))))
+   (build-system gnu-build-system)
+   ;; REPORT_EXIT_STATUS=1 will fail if tests failed. For now 30/9000 tests fails
+   (arguments `(#:make-flags (list "NO_INTERACTION=1" #;"REPORT_EXIT_STATUS=1")
+                #:test-target "test"
+                #:configure-flags
+                 (list (string-append "--with-libxml-dir="
+                                      (assoc-ref %build-inputs "libxml2"))
+                       ;; WARNING: Probably correct will be "--with-pdo-pgsql=shared,"
+                       (string-append "--with-pdo-pgsql="
+                                      (assoc-ref %build-inputs "postgresql"))
+                       "--enable-fpm")
+                 #:phases
+                  (alist-cons-after 'unpack 'fix-hardcoded-paths
+                   (lambda _
+                    (substitute* '("run-tests.php" "ext/standard/proc_open.c")
+                     (("/bin/sh") (which "sh"))))
+                   (alist-cons-after 'install 'install-configs-remove-timestamps
+                    (lambda* (#:key outputs #:allow-other-keys)
+                      (let ((out (assoc-ref outputs "out")))
+                        ;; Preform step 4 from
+                        ;; https://secure.php.net/manual/en/install.unix.nginx.php
+                        (copy-file "php.ini-development"
+                                   (string-append out "/php/php.ini"))
+                        (rename-file (string-append out "/etc/php-fpm.conf.default")
+                                     (string-append out "/etc/php-fpm.conf"))
+                        ;; WARNING: Is it required?
+                        (delete-file-recursively (string-append out "/lib/php/test"))
+                        ;; WARNING: We can't patch "install-pear-nozlib.phar", so fix
+                        ;; after installation: replace date in last field of file
+                        (substitute*
+                         (find-files (string-append out "/lib/php/.channels") ".*\\.reg")
+                         (("\"[^\"]+\";[}]$") "\"Thu,  1 Jan 1970 00:00:01 +0000\";}"))
+                        (substitute*
+                         (find-files (string-append out "/lib/php/.registry") ".*\\.reg")
+                         (("_lastmodified\";i:[0-9]+;[}]$") "_lastmodified\";i:1;}"))))
+                    %standard-phases))))
+   (inputs `(("gawk" ,gawk)
+             ("libxml2" ,libxml2)
+             ("postgresql" ,postgresql)))
+   (synopsis "PHP programming language")
+   (description "PHP programming language")
+   (home-page "http://www.php.net/")
+   (license bsd-3)))
