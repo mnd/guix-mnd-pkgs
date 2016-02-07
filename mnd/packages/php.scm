@@ -45,37 +45,37 @@
    (arguments `(#:make-flags (list "NO_INTERACTION=1" #;"REPORT_EXIT_STATUS=1")
                 #:test-target "test"
                 #:configure-flags
-                 (list (string-append "--with-libxml-dir="
-                                      (assoc-ref %build-inputs "libxml2"))
-                       ;; WARNING: Probably correct will be "--with-pdo-pgsql=shared,"
-                       (string-append "--with-pdo-pgsql="
-                                      (assoc-ref %build-inputs "postgresql"))
-                       "--enable-fpm")
+                (list (string-append "--with-libxml-dir="
+                                     (assoc-ref %build-inputs "libxml2"))
+                      ;; WARNING: Probably correct will be "--with-pdo-pgsql=shared,"
+                      (string-append "--with-pdo-pgsql="
+                                     (assoc-ref %build-inputs "postgresql"))
+                      "--enable-fpm")
                  #:phases
-                  (alist-cons-after 'unpack 'fix-hardcoded-paths
+                 (modify-phases %standard-phases
+                  (add-after 'unpack 'fix-hardcoded-paths
                    (lambda _
                     (substitute* '("run-tests.php" "ext/standard/proc_open.c")
-                     (("/bin/sh") (which "sh"))))
-                   (alist-cons-after 'install 'install-configs-remove-timestamps
-                    (lambda* (#:key outputs #:allow-other-keys)
-                      (let ((out (assoc-ref outputs "out")))
-                        ;; Preform step 4 from
-                        ;; https://secure.php.net/manual/en/install.unix.nginx.php
-                        (copy-file "php.ini-development"
-                                   (string-append out "/php/php.ini"))
-                        (rename-file (string-append out "/etc/php-fpm.conf.default")
-                                     (string-append out "/etc/php-fpm.conf"))
-                        ;; WARNING: Is it required?
-                        (delete-file-recursively (string-append out "/lib/php/test"))
-                        ;; WARNING: We can't patch "install-pear-nozlib.phar", so fix
-                        ;; after installation: replace date in last field of file
-                        (substitute*
-                         (find-files (string-append out "/lib/php/.channels") ".*\\.reg")
-                         (("\"[^\"]+\";[}]$") "\"Thu,  1 Jan 1970 00:00:01 +0000\";}"))
-                        (substitute*
-                         (find-files (string-append out "/lib/php/.registry") ".*\\.reg")
-                         (("_lastmodified\";i:[0-9]+;[}]$") "_lastmodified\";i:1;}"))))
-                    %standard-phases))))
+                     (("/bin/sh") (which "sh")))))
+                  (add-after 'install 'install-configs-remove-timestamps
+                   (lambda* (#:key outputs #:allow-other-keys)
+                     (let ((out (assoc-ref outputs "out")))
+                       ;; Preform step 4 from
+                       ;; https://secure.php.net/manual/en/install.unix.nginx.php
+                       (copy-file "php.ini-development"
+                                  (string-append out "/php/php.ini"))
+                       (rename-file (string-append out "/etc/php-fpm.conf.default")
+                                    (string-append out "/etc/php-fpm.conf"))
+                       ;; WARNING: Is it required?
+                       (delete-file-recursively (string-append out "/lib/php/test"))
+                       ;; WARNING: We can't patch "install-pear-nozlib.phar", so fix
+                       ;; after installation: replace date in last field of file
+                       (substitute*
+                        (find-files (string-append out "/lib/php/.channels") ".*\\.reg")
+                        (("\"[^\"]+\";[}]$") "\"Thu,  1 Jan 1970 00:00:01 +0000\";}"))
+                       (substitute*
+                        (find-files (string-append out "/lib/php/.registry") ".*\\.reg")
+                        (("_lastmodified\";i:[0-9]+;[}]$") "_lastmodified\";i:1;}"))))))))
    (inputs `(("gawk" ,gawk)
              ("libxml2" ,libxml2)
              ("postgresql" ,postgresql)))
