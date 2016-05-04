@@ -9,6 +9,10 @@ or
 
     guix package -L "/path/to/pkgs" -i php
 
+In same manner you can install service with
+
+    guix system -L "/path/to/pkgs" reconfigure /path/to/system-config-with-new-services.scm
+
 Current state of php package
 ----------------------------
 
