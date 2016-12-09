@@ -120,15 +120,3 @@ diff -ur php-5.6.15-orig/sapi/phpdbg/phpdbg.c php-5.6.15/sapi/phpdbg/phpdbg.c
  					PHP_VERSION,
  					get_zend_version()
  				);
-diff -ur php-5.6.15-orig/ext/phar/phar.c php-5.6.15/ext/phar/phar.c
---- php-5.6.15-orig/ext/phar/phar.c	2016-01-25 23:05:45.119240467 +0500
-+++ php-5.6.15/ext/phar/phar.c	2016-01-26 05:50:30.498642619 +0500
-@@ -3016,7 +3016,7 @@
- 			4: metadata-len
- 			+: metadata
- 		*/
--		mytime = time(NULL);
-+		mytime = 1;
- 		phar_set_32(entry_buffer, entry->uncompressed_filesize);
- 		phar_set_32(entry_buffer+4, mytime);
- 		phar_set_32(entry_buffer+8, entry->compressed_filesize);
