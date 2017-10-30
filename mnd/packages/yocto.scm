@@ -115,13 +115,6 @@
 		    (system* "tar" "xvf" source)
 		    (rename-file ,(string-append name "-" version "-checkout") yocto)
 		    (with-directory-excursion yocto
-		      ; WARNING: We can either patch sources or mount profile to /usr in container
-		      #;(for-each (cut patch-shebang <> shebang-dirs)
-				(append (list "oe-init-build-env" "oe-init-build-env-memres")
-					(find-files "bitbake")
-					(find-files "scripts")))
-		      #;(substitute* (cons "meta/conf/bitbake.conf" (find-files "bitbake/lib/bb" "\\.py$"))
-			(("/usr/bin/env") env-util))
 		      (substitute* "bitbake/lib/bb/utils.py"
 			(("'BB_TASKHASH',")
 			 ; GUIX_LOCPATH required for python locale
