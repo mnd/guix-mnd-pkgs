@@ -1,0 +1,32 @@
+From 5c0208e0073db4b6c5c294d6e42a6b9bf319bacf Mon Sep 17 00:00:00 2001
+From: Notebook owner <nikolai.merinov@member.fsf.org>
+Date: Tue, 3 Oct 2017 02:36:24 +0500
+Subject: [PATCH 4/4] perl-native_5.24.1.bb: Provide custom lddlflags
+
+For shared libraries compilation perl uses LDDLFLAGS instead of
+LDFLAGS. Defalult value for LDDLFLAGS can be provided by
+recipe-sysroot-native/usr/lib/perl-native/perl/config.sh file
+generated during perl-native compilation.
+
+With default LDDLFLAGS libxml-parser-perl-native package have no
+correct rpath in Expat.so module. Provide correct LDDLFLAGS for perl
+modules compilation.
+---
+ meta/recipes-devtools/perl/perl-native_5.24.1.bb | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/meta/recipes-devtools/perl/perl-native_5.24.1.bb b/meta/recipes-devtools/perl/perl-native_5.24.1.bb
+index e01d11fbed..6c56a7d701 100644
+--- a/meta/recipes-devtools/perl/perl-native_5.24.1.bb
++++ b/meta/recipes-devtools/perl/perl-native_5.24.1.bb
+@@ -32,6 +32,7 @@ do_configure () {
+ 		-Dcc="${CC}" \
+ 		-Dcflags="${CFLAGS}" \
+ 		-Dldflags="${LDFLAGS}" \
++		-Dlddlflags="${LDFLAGS} -shared" \
+ 		-Dcf_by="Open Embedded" \
+ 		-Dprefix=${prefix} \
+ 		-Dvendorprefix=${prefix} \
+-- 
+2.14.1
+
