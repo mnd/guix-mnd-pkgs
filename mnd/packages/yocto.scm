@@ -45,7 +45,7 @@
 
 ;; USAGE:
 ;;    # pwd by full path required by kernel, bash required by configure scripts, ln required by perl
-;;    guix environment -L ~/Workspace/guix-mnd-pkgs --ad-hoc poky --container --network --root=${PWD}/poky.env --expose=${PWD}/poky.env=/usr  --expose=/bin/sh=/bin/bash --expose=${PWD}/poky.env/bin/pwd=/bin/pwd --expose=${PWD}/poky.env/bin/ln=/bin/ln
+;;    guix environment -L ~/Workspace/guix-mnd-pkgs --ad-hoc poky --container --network --root=${PWD}/poky.env --expose=${PWD}/poky.env=/usr --expose=${PWD}/poky.env/bin/sh=/bin/bash --expose=${PWD}/poky.env/bin/pwd=/bin/pwd --expose=${PWD}/poky.env/bin/ln=/bin/ln
 ;;    export LC_ALL=en_US.UTF-8  # Use locale suitable for python3
 ;;
 ;;    # If you want to use patched version of poky call
@@ -73,12 +73,12 @@
 (define-public poky
   (package
    (name "poky")
-   (version "2.4-dev")
+   (version "2.4")
    (source (origin
 	     (method git-fetch)
 	     (uri (git-reference
 		   (url "git://git.yoctoproject.org/poky")
-		   (commit "65d23bd7986615fdfb0f1717b615534a2a14ab80")))
+		   (commit (string-append "refs/tags/yocto-" version))))
 	     (file-name (string-append name "-" version "-checkout"))
 	     (sha256
 	      (base32
@@ -108,7 +108,7 @@
 			 (shebang-dirs (list python-2-dir python-3-dir sh-dir coreutils-dir))
 			 (env-util (string-append coreutils-dir "/env")))
 		    (mkdir-p share)
-		    ; FIXME: Without patches we have fetched sources, but with patches source is tarball
+		    ; WARNING: Without patches we have fetched sources, but with patches source is tarball
 		    #;(copy-recursively (string-append source "/.") yocto)
 		    (chdir share)
 		    (setenv "PATH" (string-append tar-dir ":" xz-dir))
@@ -131,8 +131,8 @@
 			 (string-append all " -isystem/usr/include ")))
 		      (substitute* "bitbake/lib/bb/fetch2/__init__.py"
 			(("cp -fpPRH")
-			 ; FIXME: In container "nobody" must own files in /gnu/store,
-			 ; but in fact there is gid/uid = 65534 and there is no such user in /etc/passwd
+			 ; In container user have no right to map root uid to anything
+			 ; as result we can't preserve ownership on copying
 			 "cp -fpPRH --no-preserve=ownership")))))))
    (propagated-inputs `(("bash" ,bash)
 			("coreutils" ,coreutils-with-xattr)
