@@ -1,7 +1,7 @@
 ;;; GNU Guix --- Functional package management for GNU
 ;;; Copyright © 2016 David Craven <david@craven.ch>
 ;;; Copyright © 2016 Eric Le Bihan <eric.le.bihan.dev@free.fr>
-;;; Copyright © 2016 ng0 <ng0@libertad.pw>
+;;; Copyright © 2016 ng0 <ng0@infotropique.org>
 ;;; Copyright © 2017 Ben Woodcroft <donttrustben@gmail.com>
 ;;; Copyright © 2017 Nikolai Merinov <nikolai.merinov@member.fsf.org>
 ;;;
@@ -36,7 +36,6 @@
   #:use-module (gnu packages llvm)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages python)
-  #:use-module (gnu packages perl)
   #:use-module (gnu packages ssh)
   #:use-module (gnu packages tls)
   #:use-module (gnu packages version-control)
@@ -67,8 +66,7 @@
 	("i686-unknown-linux-gnu"
          "1vnvqwz30hvyjcfr1f602lg43v2vlqjr3yhb5vr8xnrcc07yvjmp")
 	("x86_64-unknown-linux-gnu"
-         "1s0866qcy0645bqhsbs3pvk2hi52ps8jzs7x096w0as033h707ml")
-	(_ "0000000000000000000000000000000000000000000000000000"))))))
+         "1s0866qcy0645bqhsbs3pvk2hi52ps8jzs7x096w0as033h707ml"))))))
 
 (define %cargo-reference-project-file "/dev/null")
 (define %cargo-reference-hash
@@ -131,6 +129,7 @@
                (for-each (lambda (file)
                            (system* "patchelf" "--set-interpreter" ld-so file))
                          (list rustc rustdoc))))))))
+    (supported-systems '("i686-linux" "x86_64-linux"))
     (home-page "https://www.rust-lang.org")
     (synopsis "Prebuilt rust compiler")
     (description "This package provides a pre-built @command{rustc} compiler,
@@ -170,6 +169,7 @@ which can in turn be used to build the final Rust compiler.")
                         "--set-interpreter" ld-so
                         "--set-rpath" rpath
                         cargo)))))))
+    (supported-systems '("i686-linux" "x86_64-linux"))
     (home-page "https://www.rust-lang.org")
     (synopsis "Prebuilt cargo package manager")
     (description "This package provides a pre-built @command{cargo} package
