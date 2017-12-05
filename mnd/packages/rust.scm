@@ -234,7 +234,7 @@ rustc-bootstrap and cargo-bootstrap packages.")
        ("rust-bootstrap" ,rust-bootstrap)
        ("which" ,which)))
     (inputs
-     `(("jemalloc" ,jemalloc)
+     `(("jemalloc" ,jemalloc-without-c++)
        ("llvm" ,llvm-3.9.1)))
     (arguments
      `(#:imported-modules ,%cargo-build-system-modules ;for `generate-checksums'
@@ -268,13 +268,6 @@ rustc-bootstrap and cargo-bootstrap packages.")
                ;; Our ld-wrapper cannot process non-UTF8 bytes in LIBRARY_PATH.
                ;; <https://lists.gnu.org/archive/html/guix-devel/2017-06/msg00193.html>
                (delete-file-recursively "src/test/run-make/linker-output-non-utf8")
-               (substitute* "src/libstd/build.rs"
-                 ;; After update to jemalloc 5.0 library "libjemalloc_pic.a"
-                 ;; required to link against libstdc++
-                 ;; First broken Rust build: https://hydra.gnu.org/build/2248057
-                 (("println!\\(\"cargo:rustc-link-lib=pthread\"\\);")
-                  (string-append "println!(\"cargo:rustc-link-lib=pthread\");\n"
-                                 "println!(\"cargo:rustc-link-lib=stdc++\");")))
                (substitute* "src/build_helper/lib.rs"
                  ;; Bug in Rust code.
                  ;; Current implementation assume that if dst not exist then it's mtime
@@ -1333,3 +1326,12 @@ dependencies and ensures a reproducible build.")
     ;; Cargo is dual licensed Apache and MIT. Also contains
     ;; code from openssl which is GPL2 with linking exception.
     (license (list license:asl2.0 license:expat license:gpl2))))
+
+(define jemalloc-without-c++
+  (package
+    (inherit jemalloc)
+    (name "jemalloc-without-c++")
+    (arguments
+     (substitute-keyword-arguments (package-arguments jemalloc)
+       ((#:configure-flags cf)
+        `(cons "--disable-cxx" ,cf))))))
