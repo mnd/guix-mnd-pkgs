@@ -44,6 +44,7 @@
   #:use-module (guix build-system gnu)
   #:use-module (guix build-system trivial)
   #:use-module (guix download)
+  #:use-module (guix utils)       ;for substitute-keyword-arguments
   #:use-module (guix base16)      ;for generated "cargo" native-inputs
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
@@ -234,7 +235,7 @@ rustc-bootstrap and cargo-bootstrap packages.")
        ("rust-bootstrap" ,rust-bootstrap)
        ("which" ,which)))
     (inputs
-     `(("jemalloc" ,jemalloc-without-c++)
+     `(("jemalloc" ,jemalloc-4.5.0)
        ("llvm" ,llvm-3.9.1)))
     (arguments
      `(#:imported-modules ,%cargo-build-system-modules ;for `generate-checksums'
@@ -330,6 +331,13 @@ cxx = \"" gcc "/bin/g++" "\"
 jemalloc = \"" jemalloc "/lib/libjemalloc_pic.a" "\"
 [dist]
 ") port))))))
+         (add-before 'build 'reset-timestamps-after-changes
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (define ref (stat "README.md"))
+             (for-each
+              (lambda (filename)
+                (set-file-time filename ref))
+              (find-files "." #:directories? #t))))
          (replace 'build
            (lambda* (#:key inputs outputs #:allow-other-keys)
              (zero? (system* "./x.py" "build"))))
@@ -1327,11 +1335,16 @@ dependencies and ensures a reproducible build.")
     ;; code from openssl which is GPL2 with linking exception.
     (license (list license:asl2.0 license:expat license:gpl2))))
 
-(define jemalloc-without-c++
+(define-public jemalloc-4.5.0
   (package
     (inherit jemalloc)
-    (name "jemalloc-without-c++")
-    (arguments
-     (substitute-keyword-arguments (package-arguments jemalloc)
-       ((#:configure-flags cf)
-        `(cons "--disable-cxx" ,cf))))))
+    (version "4.5.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/jemalloc/jemalloc/releases/download/"
+                    version "/jemalloc-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "10373xhpc10pgmai9fkc1z0rs029qlcb3c0qfnvkbwdlcibdh2cl"))))
+    (inputs '())))
