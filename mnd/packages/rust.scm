@@ -3,7 +3,7 @@
 ;;; Copyright © 2016 Eric Le Bihan <eric.le.bihan.dev@free.fr>
 ;;; Copyright © 2016 ng0 <ng0@infotropique.org>
 ;;; Copyright © 2017 Ben Woodcroft <donttrustben@gmail.com>
-;;; Copyright © 2017 Nikolai Merinov <nikolai.merinov@member.fsf.org>
+;;; Copyright © 2017, 2018 Nikolai Merinov <nikolai.merinov@member.fsf.org>
 ;;; Copyright © 2017 Efraim Flashner <efraim@flashner.co.il>
 ;;;
 ;;; This file is part of GNU Guix.
@@ -45,70 +45,48 @@
   #:use-module (guix build-system gnu)
   #:use-module (guix build-system trivial)
   #:use-module (guix download)
-  #:use-module (guix base16)      ;for generated "cargo" native-inputs
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
+  #:use-module ((guix build utils) #:select (alist-replace))
+  #:use-module (guix utils)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-26))
-
-;; Should be one less than the current released version.
-(define %rust-bootstrap-binaries-version "1.23.0")
-
-(define %rust-bootstrap-binaries
-  (origin
-    (method url-fetch)
-    (uri (string-append
-          "https://static.rust-lang.org/dist/"
-          "rust-" %rust-bootstrap-binaries-version
-          "-" %host-type ".tar.gz"))
-    (sha256
-     (base32
-      (match %host-type
-        ("i686-unknown-linux-gnu"
-         "0gs283lw6larhjlr02zm9g78djq2f6bdhxj6ls66q0z18zpx0nyw")
-        ("x86_64-unknown-linux-gnu"
-         "0znw3xxh837i5wlwsbbw6bxdqfa58bxyw3716wbckwyph8xb4d4s")
-        ("armv7-unknown-linux-gnueabihf"
-         "13mh4qx996rb6c3xygflc10j5zkmcxzjr32340ardwb7ja4jfw2q")
-        ("aarch64-unknown-linux-gnu"
-         "1irbj73ifdm7xvshma7qp61sadm683dnc57jfg5qc8kdjyyrydrq")
-        ("mips64el-unknown-linux-gnuabi64"
-         "1wksf07ba9idrj1z6x0hdfjsmhpzzi5idawnkfbhy6cj1g9ihnzv")
-        (_ "")))))) ; Catch-all for other systems.
 
 (define %cargo-reference-project-file "/dev/null")
 (define %cargo-reference-hash
   "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
-(define (increment-rust-version rust-version major patch)
-  (match (string-split rust-version #\.)
-    (("1" minor _)
-     (string-append (number->string major) "."
-                    (number->string (+ (string->number minor) 1)) "."
-                    (number->string patch)))))
-
-(define* (cargo-version rustc-version #:optional (patch 0))
-  ;; Computes the cargo version that matches the rustc version.
-  ;; https://github.com/rust-lang/cargo#Releases
-  (increment-rust-version rustc-version 0 patch))
-
-(define* (rustc-version bootstrap-version #:optional (patch 0))
-  ;; Computes the rustc version that can be compiled from a given
-  ;; other rustc version. The patch argument is for selecting
-  ;; a stability or security fix. 1.11.0 -> 1.12.1 -> 1.13.0
-  (increment-rust-version bootstrap-version 1 patch))
-
-(define rustc-bootstrap
+(define rust-bootstrap
   (package
-    (name "rustc-bootstrap")
-    (version %rust-bootstrap-binaries-version)
-    (source %rust-bootstrap-binaries)
+    (name "rust-bootstrap")
+    (version "1.22.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+ "https://static.rust-lang.org/dist/"
+                    "rust-" version "-" %host-type ".tar.gz"))
+              (sha256
+               (base32
+                (match %host-type
+                  ("i686-unknown-linux-gnu"
+                   "15zqbx86nm13d5vq2gm69b7av4vg479f74b5by64hs3bcwwm08pr")
+                  ("x86_64-unknown-linux-gnu"
+                   "1yll78x6b3abnvgjf2b66gvp6mmcb9y9jdiqcwhmgc0z0i0fix4c")
+                  ("armv7-unknown-linux-gnueabihf"
+                   "138a8l528kzp5wyk1mgjaxs304ac5ms8vlpq0ggjaznm6bn2j7a5")
+                  ("aarch64-unknown-linux-gnu"
+                   "0z6m9m1rx4d96nvybbfmpscq4dv616m615ijy16d5wh2vx0p4na8")
+                  ("mips64el-unknown-linux-gnuabi64"
+                   "07k4pcv7jvfa48cscdj8752lby7m7xdl88v3a6na1vs675lhgja2")
+                  (_ ""))))))
     (build-system gnu-build-system)
     (native-inputs
      `(("patchelf" ,patchelf)))
     (inputs
-     `(("gcc:lib" ,(canonical-package gcc) "lib")
+     `(("gcc" ,(canonical-package gcc))
+       ("gcc:lib" ,(canonical-package gcc) "lib")
        ("zlib" ,zlib)))
+    (outputs '("out" "cargo"))
     (arguments
      `(#:tests? #f
        #:strip-binaries? #f
@@ -119,115 +97,62 @@
          (replace 'install
            (lambda* (#:key inputs outputs #:allow-other-keys)
              (let* ((out (assoc-ref outputs "out"))
+                    (cargo-out (assoc-ref outputs "cargo"))
                     (gcc:lib (assoc-ref inputs "gcc:lib"))
                     (libc (assoc-ref inputs "libc"))
                     (zlib (assoc-ref inputs "zlib"))
                     (ld-so (string-append libc ,(glibc-dynamic-linker)))
                     (rpath (string-append out "/lib:" zlib "/lib:"
                                           libc "/lib:" gcc:lib "/lib"))
+                    (cargo-rpath (string-append cargo-out "/lib:" libc "/lib:"
+                                                gcc:lib "/lib"))
                     (rustc (string-append out "/bin/rustc"))
-                    (rustdoc (string-append out "/bin/rustdoc")))
+                    (rustdoc (string-append out "/bin/rustdoc"))
+                    (cargo (string-append cargo-out "/bin/cargo"))
+                    (gcc (assoc-ref inputs "gcc")))
+               ;; Install rustc/rustdoc
                (system* "bash" "install.sh"
                         (string-append "--prefix=" out)
                         (string-append "--components=rustc,"
                                        "rust-std-" %host-type))
+               ;; Instal cargo
+               (system* "bash" "install.sh"
+                        (string-append "--prefix=" cargo-out)
+                        (string-append "--components=cargo"))
                (for-each (lambda (file)
                            (system* "patchelf" "--set-rpath" rpath file))
                          (cons* rustc rustdoc (find-files out "\\.so$")))
+               (system* "patchelf" "--set-rpath" cargo-rpath cargo)
                (for-each (lambda (file)
                            (system* "patchelf" "--set-interpreter" ld-so file))
-                         (list rustc rustdoc))))))))
+                         (list rustc rustdoc cargo))
+               ;; Rust requires a C toolchain for linking. The prebuilt
+               ;; binaries expect a compiler called cc. Thus symlink gcc
+               ;; to cc.
+               (symlink (string-append gcc "/bin/gcc")
+                        (string-append out "/bin/cc"))))))))
     (home-page "https://www.rust-lang.org")
-    (synopsis "Prebuilt rust compiler")
-    (description "This package provides a pre-built @command{rustc} compiler,
-which can in turn be used to build the final Rust compiler.")
+    (synopsis "Prebuilt rust compiler and cargo package manager")
+    (description "This package provides a pre-built @command{rustc} compiler
+and a pre-built @command{cargo} package manaer, which can
+in turn be used to build the final Rust.")
     (license license:asl2.0)))
 
-(define cargo-bootstrap
-  (package
-    (name "cargo-bootstrap")
-    (version (cargo-version %rust-bootstrap-binaries-version 0))
-    (source %rust-bootstrap-binaries)
-    (build-system gnu-build-system)
-    (native-inputs
-     `(("patchelf" ,patchelf)))
-    (inputs
-     `(("gcc:lib" ,(canonical-package gcc) "lib")))
-    (arguments
-     `(#:tests? #f
-       #:strip-binaries? #f
-       #:phases
-       (modify-phases %standard-phases
-         (delete 'configure)
-         (delete 'build)
-         (replace 'install
-           (lambda* (#:key inputs outputs #:allow-other-keys)
-             (let* ((out (assoc-ref outputs "out"))
-                    (gcc:lib (assoc-ref inputs "gcc:lib"))
-                    (libc (assoc-ref inputs "libc"))
-                    (ld-so (string-append libc ,(glibc-dynamic-linker)))
-                    (rpath (string-append out "/lib:" libc "/lib:"
-                                          gcc:lib "/lib"))
-                    (cargo (string-append out "/bin/cargo")))
-               (system* "bash" "install.sh"
-                        (string-append "--prefix=" out)
-                        "--components=cargo")
-               (system* "patchelf"
-                        "--set-interpreter" ld-so
-                        "--set-rpath" rpath
-                        cargo)))))))
-    (home-page "https://www.rust-lang.org")
-    (synopsis "Prebuilt cargo package manager")
-    (description "This package provides a pre-built @command{cargo} package
-manager, which is required to build itself.")
-    (license license:asl2.0)))
-
-(define rust-bootstrap
-  (package
-    (name "rust-bootstrap")
-    (version %rust-bootstrap-binaries-version)
-    (source #f)
-    (build-system trivial-build-system)
-    (propagated-inputs
-     `(("rustc-bootstrap" ,rustc-bootstrap)
-       ("cargo-bootstrap" ,cargo-bootstrap)
-       ("gcc" ,(canonical-package gcc))))
-    (arguments
-     `(#:modules ((guix build utils))
-       #:builder
-       (begin
-         (use-modules (guix build utils))
-         (let ((out (assoc-ref %outputs "out"))
-               (gcc (assoc-ref %build-inputs "gcc")))
-           (mkdir-p (string-append out "/bin"))
-           ;; Rust requires a C toolchain for linking. The prebuilt
-           ;; binaries expect a compiler called cc. Thus symlink gcc
-           ;; to cc.
-           (symlink (string-append gcc "/bin/gcc")
-                    (string-append out "/bin/cc"))))))
-    (home-page "https://www.rust-lang.org")
-    (synopsis "Rust bootstrapping meta package")
-    (description "Meta package for a rust environment. Provides pre-compiled
-rustc-bootstrap and cargo-bootstrap packages.")
-    (license license:asl2.0)))
 
-(define-public rust
+(define (rust-source version hash)
+  (origin
+    (method url-fetch)
+    (uri (string-append "https://static.rust-lang.org/dist/"
+                        "rustc-" version "-src.tar.gz"))
+    (sha256 (base32 hash))
+    (modules '((guix build utils)))
+    (snippet '(begin (delete-file-recursively "src/llvm") #t))))
+
+(define-public rust-1.23
   (package
     (name "rust")
-    (version (rustc-version %rust-bootstrap-binaries-version 1))
-    (source (origin
-              (method url-fetch)
-              (uri (string-append
-                    "https://static.rust-lang.org/dist/"
-                    "rustc-" version "-src.tar.gz"))
-              (sha256
-               (base32
-                "1vv10x2h9kq7fxh2v01damdq8pvlp5acyh1kzcda9sfjx12kv99y"))
-              (modules '((guix build utils)))
-              (snippet
-               `(begin
-                  (delete-file-recursively "src/llvm")
-                  #t))))
+    (version "1.23.0")
+    (source (rust-source version "14fb8vhjzsxlbi6yrn1r6fl5dlbdd1m92dn5zj5gmzfwf4w9ar3l"))
     (build-system gnu-build-system)
     (native-inputs
      `(("bison" ,bison) ; For the tests
@@ -237,7 +162,8 @@ rustc-bootstrap and cargo-bootstrap packages.")
        ("git" ,git)
        ("procps" ,procps) ; For the tests
        ("python-2" ,python-2)
-       ("rust-bootstrap" ,rust-bootstrap)
+       ("rustc-bootstrap" ,rust-bootstrap)
+       ("cargo-bootstrap" ,rust-bootstrap "cargo")
        ("pkg-config" ,pkg-config) ; For "cargo"
        ("which" ,which)))
     (inputs
@@ -276,6 +202,14 @@ rustc-bootstrap and cargo-bootstrap packages.")
                ;; <https://lists.gnu.org/archive/html/guix-devel/2017-06/msg00193.html>
                (delete-file-recursively "src/test/run-make/linker-output-non-utf8")
                #t)))
+         (add-after 'patch-tests 'fix-mtime-bug
+           (lambda* (#:key #:allow-other-keys)
+             (substitute* "src/build_helper/lib.rs"
+               ;; Bug in Rust code.
+               ;; Current implementation assume that if dst not exist then it's mtime
+               ;; is 0, but in same time "src" have 0 mtime in guix build!
+               (("let threshold = mtime\\(dst\\);")
+                "if !dst.exists() {\nreturn false\n}\n let threshold = mtime(dst);"))))
          (add-after 'patch-source-shebangs 'patch-cargo-checksums
            (lambda* (#:key inputs #:allow-other-keys)
              (substitute* "src/Cargo.lock"
@@ -361,6 +295,7 @@ jemalloc = \"" jemalloc "/lib/libjemalloc_pic.a" "\"
                      ;; replace prefix to specific output
                      (("prefix = \"[^\"]*\"")
                       (string-append "prefix = \"" (assoc-ref outputs "cargo") "\"")))
+                   (set-file-time "config.toml" (stat "README.md"))
                    (zero? (system* "./x.py" "install" "cargo"))))))
          (add-after 'install 'wrap-rustc
            (lambda* (#:key inputs outputs #:allow-other-keys)
@@ -380,3 +315,19 @@ safety and thread safety guarantees.")
     (home-page "https://www.rust-lang.org")
     ;; Dual licensed.
     (license (list license:asl2.0 license:expat))))
+
+(define-public rust
+  (package
+    (inherit rust-1.23)
+    (version "1.24.1")
+    (source
+     (rust-source version
+                  "1vv10x2h9kq7fxh2v01damdq8pvlp5acyh1kzcda9sfjx12kv99y"))
+    (native-inputs
+     (alist-replace "cargo-bootstrap" (list rust-1.23 "cargo")
+                    (alist-replace "rustc-bootstrap" (list rust-1.23)
+                                   (package-native-inputs rust-1.23))))
+    (arguments
+     (substitute-keyword-arguments (package-arguments rust-1.23)
+       ((#:phases phases) `(modify-phases ,phases
+                             (delete 'fix-mtime-bug)))))))
