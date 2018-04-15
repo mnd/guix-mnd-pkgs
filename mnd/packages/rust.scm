@@ -39,13 +39,4 @@
       (native-inputs
        (alist-replace "cargo-bootstrap" (list base-rust "cargo")
                       (alist-replace "rustc-bootstrap" (list base-rust)
-                                     (package-native-inputs base-rust))))
-      (arguments
-       (substitute-keyword-arguments (package-arguments base-rust)
-         ((#:phases phases)
-          `(modify-phases ,phases
-             (add-after 'patch-cargo-tests 'patch-cargo-index-update
-               (lambda* _
-                 (substitute* "src/tools/cargo/tests/generate-lockfile.rs"
-                   ;; This test want to update crate index
-                   (("fn no_index_update") "#[ignore]\nfn no_index_update")))))))))))
+                                     (package-native-inputs base-rust)))))))
