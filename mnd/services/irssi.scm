@@ -38,10 +38,10 @@
                  (default irssi))
   (screen        irssi-configuration-screen       ;<package>
                  (default screen))
-  (user          lirc-configuration-user)         ;string
-  (group         lirc-configuration-group         ;string
+  (user          irssi-configuration-user)         ;string
+  (group         irssi-configuration-group         ;string
                  (default "users"))
-  (extra-options lirc-configuration-options       ;list of strings
+  (extra-options irssi-configuration-extra-options       ;list of strings
                  (default '())))
 
 ;;; WARNING: Are we can use any of next ways to select user:
