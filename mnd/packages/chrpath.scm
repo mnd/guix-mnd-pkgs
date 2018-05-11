@@ -1,4 +1,4 @@
-;;; Copyright (C) 2017 Nikolay Merinov <nikolay.merinov@member.fsf.org>
+;;; Copyright (C) 2017 Nikolai Merinov <nikolai.merinov@member.fsf.org>
 ;;;
 ;;; This file is part of mnd repository for GNU Guix.
 ;;;
