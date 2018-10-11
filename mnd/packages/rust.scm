@@ -17,10 +17,13 @@
   #:use-module (gnu packages python)
   #:use-module (gnu packages ssh)
   #:use-module (gnu packages tls)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages perl)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages)
   #:use-module (guix build-system cargo)
   #:use-module (guix build-system gnu)
+  #:use-module (guix build-system cmake)
   #:use-module (guix build-system trivial)
   #:use-module (guix download)
   #:use-module (guix git-download)
@@ -30,6 +33,7 @@
   #:use-module (guix utils)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-26))
+
 
 (define* (rust-source version hash #:key (patches '()))
   (origin
@@ -53,7 +57,7 @@
      (alist-replace "cargo-bootstrap" (list base-rust "cargo")
                     (alist-replace "rustc-bootstrap" (list base-rust)
                                    (package-native-inputs base-rust))))))
-
+
 (define-public rust-reproducible-1.25
   (let ((base-rust rust-1.25))
     (package
@@ -73,14 +77,22 @@
              (delete 'check))))))))
 
 (define-public rust-reproducible-1.27   ;TODO FIXME not reproducible
-  (let ((base-rust rust))
+  (let ((base-rust (rust-bootstrapped-package rust "1.27.2"
+                                    "0pg1s37bhx9zqbynxyydq5j6q7kij9vxkcv8maz0m25prm88r0cs"
+                                    #:patches
+                                    '("rust-coresimd-doctest.patch"
+                                      "rust-bootstrap-stage0-test.patch"
+                                      "rust-1.25-accept-more-detailed-gdb-lines.patch"
+                                      "rust-mdbook-Support-reproducible-builds-by-forcing-window.search.patch"))))
     (package
       (inherit base-rust)
       (name "rust-reproducible")
       (inputs
        `(("libssh2" ,libssh2)           ;for cargo
          ("libgit2" ,libgit2)           ;for cargo
-         ,@(package-inputs base-rust)))
+         ;; switch back to 3.9.1
+         ,@(alist-replace "llvm" (list llvm-3.9.1)
+                          (package-inputs base-rust))))
       (arguments
        (substitute-keyword-arguments (package-arguments base-rust)
          ((#:phases phases)
@@ -90,15 +102,42 @@
                  ;; Use system's libgit2.so library
                  (setenv "LIBGIT2_SYS_USE_PKG_CONFIG" "1")
                  #t))
+             ;; Not enabled yet still package moved back to llvm 3.9.1
+             (delete 'enable-codegen-tests)
              ;; to increase local test speed
              (delete 'check))))))))
 
 (define-public rust-1.28
   (let ((base-rust
-         (rust-bootstrapped-package rust-1.27 "1.28.0"
+         (rust-bootstrapped-package rust "1.28.0"
                                     "11k4rn77bca2rikykkk9fmprrgjswd4x4kaq7fia08vgkir82nhx"
                                     #:patches
-                                    '("rust-bootstrap-stage0-test.patch"
-                                      "rust-1.25-accept-more-detailed-gdb-lines.patch"))))
+                                    '("rust-coresimd-doctest.patch"
+                                      "rust-bootstrap-stage0-test.patch"
+                                      "rust-1.25-accept-more-detailed-gdb-lines.patch"
+                                      "rust-mdbook-Support-reproducible-builds-by-forcing-window.search.patch"))))
     (package
-      (inherit base-rust))))
+      (inherit base-rust)
+      (inputs
+       `(("libssh2" ,libssh2)           ;for cargo
+         ("libgit2" ,libgit2)           ;for cargo
+         ,@(package-inputs base-rust)))
+            (arguments
+       (substitute-keyword-arguments (package-arguments base-rust)
+         ((#:phases phases)
+          `(modify-phases ,phases
+             (add-after 'set-env 'cargo-use-host-libgit2
+               (lambda* _
+                 ;; Use system's libgit2.so library
+                 (setenv "LIBGIT2_SYS_USE_PKG_CONFIG" "1")
+                 #t))
+             (add-after 'patch-tests 'disable-amd64-avx-test
+               ;; This test will fail on x86_64 machines without avx
+               (lambda* _
+                 (substitute* "src/test/run-pass/issue-44056.rs"
+                   (("only-x86_64") "ignore-test"))))
+             (add-after 'patch-cargo-tests 'disable-cargo-network-test
+               ;; Disable test that try to create server on loopback address
+               (lambda* _
+                 (substitute* "src/tools/cargo/tests/testsuite/build_auth.rs"
+                   (("fn http_auth_offered") "#[ignore]\nfn http_auth_offered")))))))))))
