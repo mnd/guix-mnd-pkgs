@@ -76,8 +76,8 @@
              ;; to increase local test speed
              (delete 'check))))))))
 
-(define-public rust-reproducible-1.27   ;TODO FIXME not reproducible
-  (let ((base-rust (rust-bootstrapped-package rust "1.27.2"
+(define-public rust-reproducible-1.27
+  (let ((base-rust (rust-bootstrapped-package rust-1.26 "1.27.2"
                                     "0pg1s37bhx9zqbynxyydq5j6q7kij9vxkcv8maz0m25prm88r0cs"
                                     #:patches
                                     '("rust-coresimd-doctest.patch"
@@ -97,6 +97,13 @@
        (substitute-keyword-arguments (package-arguments base-rust)
          ((#:phases phases)
           `(modify-phases ,phases
+             (add-before 'install 'mkdir-prefix-paths
+               (lambda* (#:key outputs #:allow-other-keys)
+                 ;; As result of https://github.com/rust-lang/rust/issues/36989
+                 ;; `prefix' directory should exist before `install' call
+                 (mkdir-p (assoc-ref outputs "out"))
+                 (mkdir-p (assoc-ref outputs "cargo"))
+                 #t))
              (add-after 'set-env 'cargo-use-host-libgit2
                (lambda* _
                  ;; Use system's libgit2.so library
@@ -122,7 +129,7 @@
        `(("libssh2" ,libssh2)           ;for cargo
          ("libgit2" ,libgit2)           ;for cargo
          ,@(package-inputs base-rust)))
-            (arguments
+      (arguments
        (substitute-keyword-arguments (package-arguments base-rust)
          ((#:phases phases)
           `(modify-phases ,phases
