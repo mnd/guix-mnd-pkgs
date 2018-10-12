@@ -148,3 +148,13 @@
                (lambda* _
                  (substitute* "src/tools/cargo/tests/testsuite/build_auth.rs"
                    (("fn http_auth_offered") "#[ignore]\nfn http_auth_offered")))))))))))
+
+(define-public rust-1.29
+  (let ((base-rust
+         (rust-bootstrapped-package rust-1.28 "1.29.1"
+                                    "0jd3c57x3yndizns4pb68nh25si47agfmrdvf9nwwsyfcs5p5c7i"
+                                    #:patches
+                                    '("rust-1.25-accept-more-detailed-gdb-lines.patch"
+                                      "rust-mdbook-Support-reproducible-builds-by-forcing-window.search.patch"))))
+    (package
+      (inherit base-rust))))
