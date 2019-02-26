@@ -20,6 +20,7 @@
   #:use-module (guix download)
   #:use-module (guix build-system gnu)
   #:use-module (guix licenses)
+  #:use-module (gnu packages sqlite)
   #:use-module (gnu packages video)
   #:use-module (gnu packages image)
   #:use-module (gnu packages databases)
