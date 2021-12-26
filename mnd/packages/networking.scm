@@ -49,9 +49,10 @@
                #t))))))))
 
 (define-public strongswan-configurable
-  (package
-    (inherit strongswan)
+  (package/inherit strongswan
     (name "strongswan-configurable")
+    (inputs `(("libsoup-2" ,libsoup-minimal-2)
+              ,@(package-inputs strongswan)))
     (arguments
      (substitute-keyword-arguments (package-arguments strongswan)
        ((#:phases phases)
