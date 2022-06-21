@@ -100,6 +100,7 @@ strict_dlna=no
 
 (define minidlna-service-type
   (service-type (name 'minidlna)
+                (description "minidlna service that allow to share media resources to TVsets")
                 (extensions
                  (list (service-extension shepherd-root-service-type
                                           minidlna-shepherd-service)

@@ -76,6 +76,7 @@
 
 (define irssi-service-type
   (service-type (name 'irssi)
+                (description "Service for irssi client in a screen")
                 (extensions
                  (list (service-extension shepherd-root-service-type
                                           irssi-shepherd-service)))))
