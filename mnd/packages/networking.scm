@@ -31,23 +31,6 @@
   #:use-module (gnu packages vpn))
 
 
-(define-public xl2tpd-with-pppd
-  (package
-    (inherit xl2tpd)
-    (name "xl2tpd-with-pppd")
-    (inputs
-     `(("ppp" ,ppp)
-       ,@(package-inputs xl2tpd)))
-    (arguments
-     (substitute-keyword-arguments (package-arguments xl2tpd)
-       ((#:phases phases)
-        `(modify-phases ,phases
-           (add-after 'unpack 'patch-pppd
-             (lambda _
-               (substitute* "l2tp.h"
-                 (("/usr/sbin/pppd") (which "pppd")))
-               #t))))))))
-
 (define-public strongswan-configurable
   (package/inherit strongswan
     (name "strongswan-configurable")
@@ -115,7 +98,7 @@
        ("libsecret" ,libsecret)
        ("ppp" ,ppp)
        ("strongswan" ,strongswan-configurable)
-       ("xl2tpd" ,xl2tpd-with-pppd)))
+       ("xl2tpd" ,xl2tpd)))
     (home-page "https://github.com/nm-l2tp/NetworkManager-l2tp/")
     (synopsis "l2tp plugin for NetworkManager")
     (description "This extension of NetworkManager allows it to take case of
