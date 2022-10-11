@@ -49,7 +49,7 @@
 
 wmname is a nice utility to fix problems with JDK versions and other broken programs assuming a reparenting window manager for instance.")
     (home-page "https://tools.suckless.org/x/wmname/")
-    (license x11-style)))
+    (license (x11-style "file://LICENSE"))))
 
 (define-public projectlibre
   (let ((commit "a4f188f47459206c8c30219727f13f8ca2735cc7")
