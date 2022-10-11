@@ -42,7 +42,7 @@
               "1v1ffhmaqxpvf2vv4yyvjsks4skr9y088853awsh7ixh7ai8nf37"))))
    (build-system gnu-build-system)
    (inputs `(("ffmpeg" ,ffmpeg)
-             ("libjpeg" ,libjpeg)
+             ("libjpeg" ,libjpeg-turbo)
              ("sqlite" ,sqlite)
              ("libexif" ,libexif)
              ("libid3tag" ,libid3tag)
